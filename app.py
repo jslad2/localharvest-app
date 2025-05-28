@@ -6,6 +6,11 @@ import uuid
 from datetime import datetime
 
 # ------------------------
+# App Setup (must come FIRST)
+# ------------------------
+st.set_page_config(page_title="LocalHarvest", layout="centered")
+
+# ------------------------
 # Custom CSS Styles
 # ------------------------
 st.markdown("""
@@ -50,9 +55,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------
-# App Setup
+# Main Header
 # ------------------------
-st.set_page_config(page_title="LocalHarvest", layout="centered")
 st.markdown("<div class='main-title'>🌽 LocalHarvest</div>", unsafe_allow_html=True)
 st.markdown("<div class='tagline'>Trade or sell homegrown produce in your neighborhood.</div>", unsafe_allow_html=True)
 
