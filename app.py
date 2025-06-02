@@ -58,7 +58,10 @@ with tab1:
         location = st.text_input("ZIP Code")
         contact_method = st.selectbox("Preferred Contact Method", ["Email", "Phone", "Both"])
         contact = st.text_input("Enter contact detail")
-        price = st.text_input("Price")
+        if type in ["Sell", "Trade or Sell"]:
+            price = st.text_input("Price")
+        else:
+            price = ""
         image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
         submit = st.form_submit_button("Post Listing")
 
