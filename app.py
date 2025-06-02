@@ -1,9 +1,11 @@
-# LocalHarvest - Styled UI Version using Streamlit
+# LocalHarvest - Styled UI Version using Streamlit + Google Sheets
 
 import streamlit as st
 import pandas as pd
 import uuid
 from datetime import datetime
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 # ------------------------
 # App Setup (must come FIRST)
@@ -55,13 +57,19 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ------------------------
+# Google Sheets Setup
+# ------------------------
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+credentials_dict = st.secrets["google_sheets"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scope)
+client = gspread.authorize(creds)
+sheet = client.open("LocalHarvest Listings").sheet1
+
+# ------------------------
 # Main Header
 # ------------------------
 st.markdown("<div class='main-title'>🌽 LocalHarvest</div>", unsafe_allow_html=True)
 st.markdown("<div class='tagline'>Trade or sell homegrown produce in your neighborhood.</div>", unsafe_allow_html=True)
-
-if "listings" not in st.session_state:
-    st.session_state.listings = []
 
 # ------------------------
 # Add Listing Form
@@ -76,16 +84,16 @@ with st.form("add_listing"):
     submit = st.form_submit_button("Post Listing")
 
 if submit and name and location and contact:
-    listing = {
-        "id": str(uuid.uuid4()),
-        "name": name,
-        "type": type,
-        "desc": description,
-        "zip": location,
-        "contact": contact,
-        "timestamp": datetime.now()
-    }
-    st.session_state.listings.append(listing)
+    listing = [
+        str(uuid.uuid4()),
+        name,
+        type,
+        description,
+        location,
+        contact,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ]
+    sheet.append_row(listing)
     st.success(f"✅ {name} listed for {type.lower()}!")
 
 # ------------------------
@@ -94,8 +102,10 @@ if submit and name and location and contact:
 st.subheader("🍏 Listings Near You")
 filter_zip = st.text_input("Enter your ZIP Code:")
 
+records = sheet.get_all_records()
+
 if filter_zip:
-    matches = [l for l in st.session_state.listings if l['zip'] == filter_zip]
+    matches = [l for l in records if str(l['zip']) == filter_zip]
     if matches:
         for l in matches:
             st.markdown(f"""
