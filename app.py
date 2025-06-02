@@ -80,7 +80,7 @@ with tab1:
     st.subheader("📤 Post Your Produce")
     with st.form("add_listing"):
         name = st.text_input("Item (e.g., Tomatoes, Basil)")
-        type = st.selectbox("Type", ["Trade", "Sell"])
+        type = st.selectbox("Type", ["Trade", "Sell", "Trade or Sell"])
         description = st.text_area("Description")
         location = st.text_input("ZIP Code")
         contact = st.text_input("Contact (email or phone)")
