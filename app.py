@@ -83,51 +83,28 @@ with tab1:
             else:
                 st.success(f"✅ {name} listed successfully!")
 
-
 with tab2:
-    st.subheader("🔍 Find Produce Near You")
-    filter_zip = st.text_input("Enter your ZIP Code:")
-    filter_name = st.text_input("Search by item name (optional):")
-    filter_type = st.selectbox("Filter by type", ["All", "Trade", "Sell", "Trade or Sell"])
+    st.subheader("🔍 Browse by ZIP Code")
+    zip_filter = st.text_input("Enter ZIP Code")
 
-    records = sheet.get_all_records()
+    if zip_filter:
+        data = sheet.get_all_values()
+        df = pd.DataFrame(data[1:], columns=data[0])
+        matches = df[df['ZIP Code'] == zip_filter]
 
-    if filter_zip:
-        matches = [l for l in records if str(l['zip']) == filter_zip]
-        if filter_name:
-            matches = [m for m in matches if filter_name.lower() in m['name'].lower()]
-        if filter_type != "All":
-            matches = [m for m in matches if m['type'] == filter_type]
-
-        if matches:
-            for l in matches:
-                image_html = f"<br><img class='listing-thumb' src='{l['image']}' />" if l['image'] else ""
-                price_line = f"💲 <strong>Price:</strong> {l['price']}<br>" if l.get('price') else ""
+        if not matches.empty:
+            for _, l in matches.iterrows():
+                image_html = f"<br><img class='listing-thumb' src='{l['Image']}'/>" if l['Image'] else ""
+                price_line = f"💲 <strong>Price:</strong> {l['Price']}<br>" if l['Price'] else ""
                 st.markdown(f"""
                 <div class='listing-card'>
-                <strong>{l['name']}</strong> ({l['type']})<br>
-                <span style='color:#555;'>{l['desc']}</span><br>
-                📍 <strong>ZIP:</strong> {l['zip']}<br>
-                📞 <strong>Contact:</strong> {l['contact']}<br>
+                <strong>{l['Item']}</strong> ({l['Type']})<br>
+                <span style='color:#555;'>{l['Description']}</span><br>
+                📍 <strong>ZIP:</strong> {l['ZIP Code']}<br>
+                📞 <strong>Contact:</strong> {l['Contact']}<br>
                 {price_line}
-                🕒 <em>{l['timestamp']}</em>
                 {image_html}
                 </div>
                 """, unsafe_allow_html=True)
         else:
-            st.warning("No listings found that match your search.")
-    else:
-        st.info("Enter your ZIP code to browse local produce.")
-
-# ------------------------
-# Coming Soon
-# ------------------------
-st.markdown("""
----
-### 🔜 Coming Soon:
-- Real image hosting via Supabase or Cloudinary 📷
-- Map view of listings 🗺️
-- Listing expiration logic ⏳
-- Chat & message system 💬
-- Export your listings to CSV 📁
-""")
+            st.warning("No listings found for that ZIP code.")
