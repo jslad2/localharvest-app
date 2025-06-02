@@ -51,37 +51,38 @@ tab1, tab2 = st.tabs(["📬 Post Produce", "🍏 Browse Listings"])
 
 with tab1:
     st.subheader("📤 Post Your Produce")
-    with st.form("add_listing"):
-        name = st.text_input("Item (e.g., Tomatoes, Basil)")
-        type = st.selectbox("Type", ["Trade", "Sell", "Trade or Sell"])
-        description = st.text_area("Description")
-        location = st.text_input("ZIP Code")
-        contact_method = st.selectbox("Preferred Contact Method", ["Email", "Phone", "Both"])
-        contact = st.text_input("Enter contact detail")
-        if type in ["Sell", "Trade or Sell"]:
-            price = st.text_input("Price")
-        else:
-            price = ""
-        image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
-        submit = st.form_submit_button("Post Listing")
 
-    if submit and name and location and contact:
-        image_url = ""
-        if image:
-            image_bytes = image.read()
-            image_url = f"data:image/jpeg;base64,{base64.b64encode(image_bytes).decode()}"
+    name = st.text_input("Item (e.g., Tomatoes, Basil)")
+    type = st.selectbox("Type", ["", "Trade", "Sell", "Trade or Sell"])
 
-        listing = [
-            str(uuid.uuid4()), name, type, description, location,
-            f"{contact_method}: {contact}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), image_url, price
-        ]
+    if type:
+        with st.form("add_listing", clear_on_submit=True):
+            description = st.text_area("Description")
+            location = st.text_input("ZIP Code")
+            contact_method = st.selectbox("Preferred Contact Method", ["Email", "Phone", "Both"])
+            contact = st.text_input("Enter contact detail")
+            price = st.text_input("Price") if type in ["Sell", "Trade or Sell"] else ""
+            image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
+            submit = st.form_submit_button("Post Listing")
 
-        try:
-            sheet.append_row(listing)
-        except:
-            st.error("❌ Failed to add listing. Check your sheet access.")
-        else:
-            st.success(f"✅ {name} listed successfully!")
+        if submit and name and location and contact:
+            image_url = ""
+            if image:
+                image_bytes = image.read()
+                image_url = f"data:image/jpeg;base64,{base64.b64encode(image_bytes).decode()}"
+
+            listing = [
+                str(uuid.uuid4()), name, type, description, location,
+                f"{contact_method}: {contact}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), image_url, price
+            ]
+
+            try:
+                sheet.append_row(listing)
+            except:
+                st.error("❌ Failed to add listing. Check your sheet access.")
+            else:
+                st.success(f"✅ {name} listed successfully!")
+
 
 with tab2:
     st.subheader("🔍 Find Produce Near You")
