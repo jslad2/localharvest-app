@@ -91,7 +91,7 @@ with tab2:
         data = sheet.get_all_values()
         df = pd.DataFrame(data[1:], columns=[c.strip().lower().replace(' ', '_') for c in data[0]])
         df.columns = df.columns.str.strip()
-                matches = df[df['zip'] == zip_filter]
+        matches = df[df['zip'] == zip_filter]
 
         if not matches.empty:
             for _, l in matches.iterrows():
