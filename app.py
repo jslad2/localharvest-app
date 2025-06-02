@@ -83,7 +83,7 @@ with tab1:
             else:
                 st.success(f"✅ {name} listed successfully!")
 
-with tab2:More actions
+with tab2
     st.subheader("🔍 Find Produce Near You")
     filter_zip = st.text_input("Enter your ZIP Code:")
     filter_name = st.text_input("Search by item name (optional):")
