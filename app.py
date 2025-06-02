@@ -89,7 +89,7 @@ with tab2:
 
     if zip_filter:
         data = sheet.get_all_values()
-        df = pd.DataFrame(data[1:], columns=data[0])
+        df = pd.DataFrame(data[1:], columns=[c.strip() for c in data[0]])
         matches = df[df['ZIP Code'] == zip_filter]
 
         if not matches.empty:
