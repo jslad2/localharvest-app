@@ -96,12 +96,12 @@ with tab2:
         if not matches.empty:
             for _, l in matches.iterrows():
                 image_html = f"<br><img class='listing-thumb' src='{l['image']}'/>" if 'image' in l and l['image'] else ""
-                price_line = f"💲 <strong>Price:</strong> {l['price']}<br>" if l['price'] else ""
+                price_line = f"💲 <strong>Price:</strong> {l['price']}<br>" if 'price' in l and l['price'] else ""
                 st.markdown(f"""
                 <div class='listing-card'>
                 <strong>{l['item']}</strong> ({l['type']})<br>
                 <span style='color:#555;'>{l['desc']}</span><br>
-                📍 <strong>ZIP:</strong> {l['zip_code']}<br>
+                📍 <strong>ZIP:</strong> {l['zip']}<br>
                 📞 <strong>Contact:</strong> {l['contact']}<br>
                 {price_line}
                 {image_html}
