@@ -1,4 +1,4 @@
-# LocalHarvest - Upgraded UI + Image Upload + Filters + Google Sheets
+# LocalHarvest - UI with Tabs + Image Upload + Filters + Google Sheets
 
 import streamlit as st
 import pandas as pd
@@ -72,67 +72,67 @@ st.markdown("<div class='main-title'>🌽 LocalHarvest</div>", unsafe_allow_html
 st.markdown("<div class='tagline'>Trade or sell homegrown produce in your neighborhood.</div>", unsafe_allow_html=True)
 
 # ------------------------
-# Add Listing Form
+# Tabs for Split View
 # ------------------------
-st.subheader("📤 Post Your Produce")
-with st.form("add_listing"):
-    name = st.text_input("Item (e.g., Tomatoes, Basil)")
-    type = st.selectbox("Type", ["Trade", "Sell"])
-    description = st.text_area("Description")
-    location = st.text_input("ZIP Code")
-    contact = st.text_input("Contact (email or phone)")
-    image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
-    submit = st.form_submit_button("Post Listing")
+tab1, tab2 = st.tabs(["📬 Post Produce", "🍏 Browse Listings"])
 
-if submit and name and location and contact:
-    image_url = image.name if image else ""
-    listing = [
-        str(uuid.uuid4()),
-        name,
-        type,
-        description,
-        location,
-        contact,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        image_url
-    ]
-    # Extend sheet if needed
-    try:
-        sheet.append_row(listing)
-    except:
-        st.error("❌ Failed to add listing. Check your sheet access.")
+with tab1:
+    st.subheader("📤 Post Your Produce")
+    with st.form("add_listing"):
+        name = st.text_input("Item (e.g., Tomatoes, Basil)")
+        type = st.selectbox("Type", ["Trade", "Sell"])
+        description = st.text_area("Description")
+        location = st.text_input("ZIP Code")
+        contact = st.text_input("Contact (email or phone)")
+        image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
+        submit = st.form_submit_button("Post Listing")
+
+    if submit and name and location and contact:
+        image_url = image.name if image else ""
+        listing = [
+            str(uuid.uuid4()),
+            name,
+            type,
+            description,
+            location,
+            contact,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            image_url
+        ]
+        try:
+            sheet.append_row(listing)
+        except:
+            st.error("❌ Failed to add listing. Check your sheet access.")
+        else:
+            st.success(f"✅ {name} listed for {type.lower()}!")
+
+with tab2:
+    st.subheader("🔍 Find Produce Near You")
+    filter_zip = st.text_input("Enter your ZIP Code:")
+    filter_name = st.text_input("Search by item name (optional):")
+
+    records = sheet.get_all_records()
+
+    if filter_zip:
+        matches = [l for l in records if str(l['zip']) == filter_zip]
+        if filter_name:
+            matches = [m for m in matches if filter_name.lower() in m['name'].lower()]
+
+        if matches:
+            for l in matches:
+                st.markdown(f"""
+                <div class='listing-card'>
+                <strong>{l['name']}</strong> ({l['type']})<br>
+                <span style='color:#555;'>{l['desc']}</span><br>
+                📍 <strong>ZIP:</strong> {l['zip']}<br>
+                📞 <strong>Contact:</strong> {l['contact']}<br>
+                🕒 <em>{l['timestamp']}</em>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.warning("No listings found that match your search.")
     else:
-        st.success(f"✅ {name} listed for {type.lower()}!")
-
-# ------------------------
-# View Listings
-# ------------------------
-st.subheader("🍏 Listings Near You")
-filter_zip = st.text_input("Enter your ZIP Code:")
-filter_name = st.text_input("Search by item name (optional):")
-
-records = sheet.get_all_records()
-
-if filter_zip:
-    matches = [l for l in records if str(l['zip']) == filter_zip]
-    if filter_name:
-        matches = [m for m in matches if filter_name.lower() in m['name'].lower()]
-
-    if matches:
-        for l in matches:
-            st.markdown(f"""
-            <div class='listing-card'>
-            <strong>{l['name']}</strong> ({l['type']})<br>
-            <span style='color:#555;'>{l['desc']}</span><br>
-            📍 <strong>ZIP:</strong> {l['zip']}<br>
-            📞 <strong>Contact:</strong> {l['contact']}<br>
-            🕒 <em>{l['timestamp']}</em>
-            </div>
-            """, unsafe_allow_html=True)
-    else:
-        st.warning("No listings found that match your search.")
-else:
-    st.info("Enter your ZIP code to browse local produce.")
+        st.info("Enter your ZIP code to browse local produce.")
 
 # ------------------------
 # Coming Soon Section
