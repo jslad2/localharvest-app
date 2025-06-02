@@ -1,4 +1,4 @@
-# LocalHarvest - Styled UI Version using Streamlit + Google Sheets
+# LocalHarvest - Upgraded UI + Image Upload + Filters + Google Sheets
 
 import streamlit as st
 import pandas as pd
@@ -81,9 +81,11 @@ with st.form("add_listing"):
     description = st.text_area("Description")
     location = st.text_input("ZIP Code")
     contact = st.text_input("Contact (email or phone)")
+    image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
     submit = st.form_submit_button("Post Listing")
 
 if submit and name and location and contact:
+    image_url = image.name if image else ""
     listing = [
         str(uuid.uuid4()),
         name,
@@ -91,21 +93,31 @@ if submit and name and location and contact:
         description,
         location,
         contact,
-        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        image_url
     ]
-    sheet.append_row(listing)
-    st.success(f"✅ {name} listed for {type.lower()}!")
+    # Extend sheet if needed
+    try:
+        sheet.append_row(listing)
+    except:
+        st.error("❌ Failed to add listing. Check your sheet access.")
+    else:
+        st.success(f"✅ {name} listed for {type.lower()}!")
 
 # ------------------------
 # View Listings
 # ------------------------
 st.subheader("🍏 Listings Near You")
 filter_zip = st.text_input("Enter your ZIP Code:")
+filter_name = st.text_input("Search by item name (optional):")
 
 records = sheet.get_all_records()
 
 if filter_zip:
     matches = [l for l in records if str(l['zip']) == filter_zip]
+    if filter_name:
+        matches = [m for m in matches if filter_name.lower() in m['name'].lower()]
+
     if matches:
         for l in matches:
             st.markdown(f"""
@@ -113,11 +125,12 @@ if filter_zip:
             <strong>{l['name']}</strong> ({l['type']})<br>
             <span style='color:#555;'>{l['desc']}</span><br>
             📍 <strong>ZIP:</strong> {l['zip']}<br>
-            📞 <strong>Contact:</strong> {l['contact']}
+            📞 <strong>Contact:</strong> {l['contact']}<br>
+            🕒 <em>{l['timestamp']}</em>
             </div>
             """, unsafe_allow_html=True)
     else:
-        st.warning("No listings found in that ZIP code yet.")
+        st.warning("No listings found that match your search.")
 else:
     st.info("Enter your ZIP code to browse local produce.")
 
@@ -131,4 +144,5 @@ st.markdown("""
 - Built-in chat or message requests 💬
 - Filters by category or freshness 🍓
 - Seller/trader verification badges ✅
+- Map of nearby listings 🗺️
 """)
