@@ -95,7 +95,7 @@ with tab2:
 
         if not matches.empty:
             for _, l in matches.iterrows():
-                image_html = f"<br><img class='listing-thumb' src='{l['image']}'/>" if l['image'] else ""
+                image_html = f"<br><img class='listing-thumb' src='{l['image']}'/>" if 'image' in l and l['image'] else ""
                 price_line = f"💲 <strong>Price:</strong> {l['price']}<br>" if l['price'] else ""
                 st.markdown(f"""
                 <div class='listing-card'>
