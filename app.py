@@ -89,8 +89,8 @@ with tab2:
 
     if zip_filter:
         data = sheet.get_all_values()
-        df = pd.DataFrame(data[1:], columns=[c.strip() for c in data[0]])
-        matches = df[df['ZIP Code'] == zip_filter]
+        df = pd.DataFrame(data[1:], columns=[c.strip().lower().replace(' ', '_') for c in data[0]])
+        matches = df[df['zip_code'] == zip_filter]
 
         if not matches.empty:
             for _, l in matches.iterrows():
