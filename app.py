@@ -141,12 +141,9 @@ with tab2:
 
     try:
         data = sheet.get_all_values()
-
-        # pad short rows with empty columns if needed
-        for i, row in enumerate(data[1:]):
+        for row in data[1:]:
             while len(row) < 9:
                 row.append("")
-
         df = pd.DataFrame(data[1:], columns=[
             "id", "item", "type", "desc", "zip", "contact", "timestamp", "image", "price"
         ])
@@ -178,7 +175,7 @@ with tab2:
             """, unsafe_allow_html=True)
 
 # ------------------------
-# My Listings
+# My Listings + Edit/Delete
 # ------------------------
 with tab3:
     st.subheader("📂 My Listings")
@@ -192,16 +189,83 @@ with tab3:
         if my_listings.empty:
             st.info("You haven’t posted anything yet.")
         else:
-            for _, l in my_listings.iterrows():
-                image_html = f"<img class='listing-thumb' src='{l['image']}'/>" if l['image'] else ""
-                price_line = f"💲 <strong>Price:</strong> {l['price']}<br>" if l['price'] else ""
+            for idx, row in my_listings.iterrows():
+                image_html = f"<img class='listing-thumb' src='{row['image']}'/>" if row['image'] else ""
+                price_line = f"💲 <strong>Price:</strong> {row['price']}<br>" if row['price'] else ""
                 st.markdown(f"""
                 <div class='listing-card'>
-                <strong>{l['item']}</strong> ({l['type']})<br>
-                <span style='color:#555;'>{l['desc']}</span><br>
-                📍 <strong>ZIP:</strong> {l['zip']}<br>
-                📞 <strong>Contact:</strong> {l['contact']}<br>
+                <strong>{row['item']}</strong> ({row['type']})<br>
+                <span style='color:#555;'>{row['desc']}</span><br>
+                📍 <strong>ZIP:</strong> {row['zip']}<br>
+                📞 <strong>Contact:</strong> {row['contact']}<br>
                 {price_line}
                 {image_html}
                 </div>
                 """, unsafe_allow_html=True)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("📝 Edit", key=f"edit_{row['id']}"):
+                        st.session_state["edit_mode"] = row.to_dict()
+                with col2:
+                    if st.button("🗑️ Delete", key=f"delete_{row['id']}"):
+                        st.session_state["confirm_delete"] = row.to_dict()
+
+# ------------------------
+# Confirm Delete Dialog
+# ------------------------
+if "confirm_delete" in st.session_state:
+    row = st.session_state["confirm_delete"]
+    st.warning(f"⚠ Are you sure you want to delete: **{row['item']}**?")
+    confirm_col1, confirm_col2 = st.columns(2)
+    with confirm_col1:
+        if st.button("✅ Yes, delete it"):
+            all_rows = sheet.get_all_values()
+            for i, r in enumerate(all_rows):
+                if r[0] == row["id"]:
+                    sheet.delete_rows(i + 1)
+                    break
+            st.success("Deleted successfully.")
+            del st.session_state["confirm_delete"]
+            st.experimental_rerun()
+    with confirm_col2:
+        if st.button("❌ Cancel"):
+            del st.session_state["confirm_delete"]
+
+# ------------------------
+# Edit Form
+# ------------------------
+if "edit_mode" in st.session_state:
+    st.subheader("✏️ Edit Listing")
+    listing = st.session_state["edit_mode"]
+
+    with st.form("edit_listing"):
+        new_name = st.text_input("Item", value=listing["item"])
+        new_type = st.selectbox("Type", ["Trade", "Sell", "Trade or Sell"], index=["Trade", "Sell", "Trade or Sell"].index(listing["type"]))
+        new_desc = st.text_area("Description", value=listing["desc"])
+        new_zip = st.text_input("ZIP Code", value=listing["zip"])
+        new_contact = st.text_input("Contact Info", value=listing["contact"])
+        new_price = st.text_input("Price", value=listing["price"])
+        new_image = st.file_uploader("Replace Image? (optional)", type=["jpg", "jpeg", "png"])
+        submitted = st.form_submit_button("Update Listing")
+
+    if submitted:
+        updated_image = listing["image"]
+        if new_image:
+            image_bytes = new_image.read()
+            updated_image = f"data:image/jpeg;base64,{base64.b64encode(image_bytes).decode()}"
+
+        updated_row = [
+            listing["id"], new_name, new_type, new_desc, new_zip, new_contact,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"), updated_image, new_price
+        ]
+
+        all_rows = sheet.get_all_values()
+        for i, r in enumerate(all_rows):
+            if r[0] == listing["id"]:
+                sheet.delete_rows(i + 1)
+                break
+        sheet.append_row(updated_row)
+        st.success("✅ Listing updated successfully!")
+        del st.session_state["edit_mode"]
+        st.experimental_rerun()
