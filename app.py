@@ -12,6 +12,13 @@ import base64
 st.set_page_config(page_title="LocalHarvest", layout="centered")
 
 # ------------------------
+# Success message after rerun
+# ------------------------
+if st.session_state.get("update_success"):
+    st.success("✅ Listing updated successfully!")
+    del st.session_state["update_success"]
+
+# ------------------------
 # CSS Styling
 # ------------------------
 st.markdown("""
@@ -227,7 +234,7 @@ if "confirm_delete" in st.session_state:
                     break
             st.success("Deleted successfully.")
             del st.session_state["confirm_delete"]
-            st.experimental_rerun()
+            st.rerun()
     with confirm_col2:
         if st.button("❌ Cancel"):
             del st.session_state["confirm_delete"]
@@ -235,7 +242,7 @@ if "confirm_delete" in st.session_state:
 # ------------------------
 # Edit Form
 # ------------------------
-if "edit_mode" in st.session_state:
+if "edit_mode" in st.session_state and st.session_state["edit_mode"]:
     st.subheader("✏️ Edit Listing")
     listing = st.session_state["edit_mode"]
 
@@ -266,6 +273,6 @@ if "edit_mode" in st.session_state:
                 sheet.delete_rows(i + 1)
                 break
         sheet.append_row(updated_row)
-        st.success("✅ Listing updated successfully!")
-        del st.session_state["edit_mode"]
-        st.experimental_rerun()
+        st.session_state["edit_mode"] = None
+        st.session_state["update_success"] = True
+        st.rerun()
