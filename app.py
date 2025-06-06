@@ -37,7 +37,7 @@ html, body, [class*="css"] {
     border: 1px solid #ddd;
     border-radius: 12px;
     padding: 15px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     background-color: #fff;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
@@ -189,7 +189,7 @@ with tab3:
         if my_listings.empty:
             st.info("You haven’t posted anything yet.")
         else:
-            for idx, row in my_listings.iterrows():
+            for _, row in my_listings.iterrows():
                 image_html = f"<img class='listing-thumb' src='{row['image']}'/>" if row['image'] else ""
                 price_line = f"💲 <strong>Price:</strong> {row['price']}<br>" if row['price'] else ""
                 st.markdown(f"""
@@ -203,7 +203,7 @@ with tab3:
                 </div>
                 """, unsafe_allow_html=True)
 
-                col1, col2 = st.columns(2)
+                col1, col2 = st.columns([1, 1])
                 with col1:
                     if st.button("📝 Edit", key=f"edit_{row['id']}"):
                         st.session_state["edit_mode"] = row.to_dict()
