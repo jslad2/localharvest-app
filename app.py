@@ -12,11 +12,24 @@ import base64
 st.set_page_config(page_title="LocalHarvest", layout="centered")
 
 # ------------------------
-# Success message after rerun
+# Session Initialization
 # ------------------------
+if "user_email" not in st.session_state:
+    st.session_state["user_email"] = ""
+if "active_tab" not in st.session_state:
+    st.session_state["active_tab"] = "Post"
 if st.session_state.get("update_success"):
     st.success("✅ Listing updated successfully!")
     del st.session_state["update_success"]
+
+# ------------------------
+# Tab Labels
+# ------------------------
+tab_labels = {
+    "Post": "\U0001F4EC Post Produce",
+    "Browse": "\U0001F34F Browse Listings",
+    "My": "\U0001F4C2 My Listings"
+}
 
 # ------------------------
 # CSS Styling
@@ -72,14 +85,10 @@ client = gspread.authorize(creds)
 sheet = client.open("LocalHarvest Listings").sheet1
 
 # ------------------------
-# User Session / Login
+# User Login
 # ------------------------
-if "user_email" not in st.session_state:
-    st.session_state["user_email"] = ""
-
-st.sidebar.header("🔐 Login")
+st.sidebar.header("\U0001F510 Login")
 email_input = st.sidebar.text_input("Your Email", placeholder="you@email.com")
-
 if st.sidebar.button("Log In"):
     if "@" in email_input and "." in email_input:
         st.session_state["user_email"] = email_input
@@ -90,20 +99,39 @@ if st.sidebar.button("Log In"):
 # ------------------------
 # Header
 # ------------------------
-st.markdown("<div class='main-title'>🌽 LocalHarvest</div>", unsafe_allow_html=True)
+st.markdown("<div class='main-title'>\U0001F33D LocalHarvest</div>", unsafe_allow_html=True)
 st.markdown("<div class='tagline'>Trade or sell homegrown produce in your neighborhood.</div>", unsafe_allow_html=True)
 
 # ------------------------
-# Tabs
+# Tab Selection
 # ------------------------
-tab1, tab2, tab3 = st.tabs(["📬 Post Produce", "🍏 Browse Listings", "📂 My Listings"])
+selected_tab = st.radio("Choose a section:", list(tab_labels.values()), horizontal=True, label_visibility="collapsed")
+tab1_selected = selected_tab == tab_labels["Post"]
+tab2_selected = selected_tab == tab_labels["Browse"]
+tab3_selected = selected_tab == tab_labels["My"]
 
 # ------------------------
-# POST Produce
+# Load Data
 # ------------------------
-with tab1:
-    st.subheader("📤 Post Your Produce")
+try:
+    data = sheet.get_all_values()
+    for row in data[1:]:
+        while len(row) < 9:
+            row.append("")
+    df = pd.DataFrame(data[1:], columns=[
+        "id", "item", "type", "desc", "zip", "contact", "timestamp", "image", "price"
+    ])
+except Exception as e:
+    st.error(f"Could not load listings: {e}")
+    st.stop()
 
+df = df.sort_values("timestamp", ascending=False)
+
+# ------------------------
+# Post Produce
+# ------------------------
+if tab1_selected:
+    st.subheader("\U0001F4E4 Post Your Produce")
     if not st.session_state["user_email"]:
         st.warning("Please log in using the sidebar to post produce.")
     else:
@@ -113,16 +141,16 @@ with tab1:
         if type:
             with st.form("add_listing", clear_on_submit=True):
                 description = st.text_area("Description")
-                location = st.text_input("ZIP Code", placeholder="e.g., 90210", help="Your 5-digit postal code")
+                location = st.text_input("ZIP Code", placeholder="e.g., 90210")
                 contact_method = st.selectbox("Preferred Contact Method", ["Email", "Phone", "Both"])
                 contact = st.text_input("Enter contact detail", value=st.session_state["user_email"])
-                price = st.text_input("Price", placeholder="$5 per bunch") if type in ["Sell", "Trade or Sell"] else ""
+                price = st.text_input("Price") if type in ["Sell", "Trade or Sell"] else ""
                 image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
                 submit = st.form_submit_button("Post Listing")
 
             if submit:
                 if not (name and location and contact):
-                    st.warning("❗ Please fill out all required fields (Item, ZIP Code, Contact).")
+                    st.warning("Please fill out all required fields.")
                 else:
                     image_url = ""
                     if image:
@@ -136,32 +164,17 @@ with tab1:
 
                     try:
                         sheet.append_row(listing)
-                        st.success(f"✅ {name} listed successfully on {listing[6]}!")
+                        st.success(f"✅ {name} listed successfully!")
                     except Exception as e:
                         st.error(f"❌ Failed to add listing: {e}")
 
 # ------------------------
 # Browse Listings
 # ------------------------
-with tab2:
-    st.subheader("🔍 Browse Listings")
-
-    try:
-        data = sheet.get_all_values()
-        for row in data[1:]:
-            while len(row) < 9:
-                row.append("")
-        df = pd.DataFrame(data[1:], columns=[
-            "id", "item", "type", "desc", "zip", "contact", "timestamp", "image", "price"
-        ])
-    except Exception as e:
-        st.error(f"Could not load listings: {e}")
-        st.stop()
-
-    df = df.sort_values("timestamp", ascending=False)
+elif tab2_selected:
+    st.subheader("\U0001F50D Browse Listings")
     all_zips = sorted(df["zip"].unique())
     zip_filter = st.selectbox("Filter by ZIP Code", options=["All"] + all_zips)
-
     matches = df if zip_filter == "All" else df[df["zip"].str.startswith(zip_filter)]
 
     if matches.empty:
@@ -182,70 +195,65 @@ with tab2:
             """, unsafe_allow_html=True)
 
 # ------------------------
-# My Listings + Edit/Delete
+# My Listings
 # ------------------------
-with tab3:
-    st.subheader("📂 My Listings")
-
-    user = st.session_state.get("user_email", "")
+elif tab3_selected:
+    st.subheader("\U0001F4C2 My Listings")
+    user = st.session_state["user_email"]
     if not user:
-        st.warning("Please log in using the sidebar to view your listings.")
+        st.warning("Please log in to view your listings.")
     else:
         my_listings = df[df["contact"].str.contains(user, case=False, na=False)]
+        for _, row in my_listings.iterrows():
+            image_html = f"<img class='listing-thumb' src='{row['image']}'/>" if row['image'] else ""
+            price_line = f"💲 <strong>Price:</strong> {row['price']}<br>" if row['price'] else ""
+            st.markdown(f"""
+            <div class='listing-card'>
+            <strong>{row['item']}</strong> ({row['type']})<br>
+            <span style='color:#555;'>{row['desc']}</span><br>
+            📍 <strong>ZIP:</strong> {row['zip']}<br>
+            📞 <strong>Contact:</strong> {row['contact']}<br>
+            {price_line}
+            {image_html}
+            </div>
+            """, unsafe_allow_html=True)
 
-        if my_listings.empty:
-            st.info("You haven’t posted anything yet.")
-        else:
-            for _, row in my_listings.iterrows():
-                image_html = f"<img class='listing-thumb' src='{row['image']}'/>" if row['image'] else ""
-                price_line = f"💲 <strong>Price:</strong> {row['price']}<br>" if row['price'] else ""
-                st.markdown(f"""
-                <div class='listing-card'>
-                <strong>{row['item']}</strong> ({row['type']})<br>
-                <span style='color:#555;'>{row['desc']}</span><br>
-                📍 <strong>ZIP:</strong> {row['zip']}<br>
-                📞 <strong>Contact:</strong> {row['contact']}<br>
-                {price_line}
-                {image_html}
-                </div>
-                """, unsafe_allow_html=True)
-
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    if st.button("📝 Edit", key=f"edit_{row['id']}"):
-                        st.session_state["edit_mode"] = row.to_dict()
-                with col2:
-                    if st.button("🗑️ Delete", key=f"delete_{row['id']}"):
-                        st.session_state["confirm_delete"] = row.to_dict()
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("📝 Edit", key=f"edit_{row['id']}"):
+                    st.session_state["edit_mode"] = row.to_dict()
+                    st.session_state["active_tab"] = "My"
+            with col2:
+                if st.button("🗑️ Delete", key=f"delete_{row['id']}"):
+                    st.session_state["confirm_delete"] = row.to_dict()
 
 # ------------------------
-# Confirm Delete Dialog
+# Confirm Delete
 # ------------------------
 if "confirm_delete" in st.session_state:
     row = st.session_state["confirm_delete"]
     st.warning(f"⚠ Are you sure you want to delete: **{row['item']}**?")
-    confirm_col1, confirm_col2 = st.columns(2)
-    with confirm_col1:
+    col1, col2 = st.columns(2)
+    with col1:
         if st.button("✅ Yes, delete it"):
             all_rows = sheet.get_all_values()
             for i, r in enumerate(all_rows):
                 if r[0] == row["id"]:
                     sheet.delete_rows(i + 1)
                     break
-            st.success("Deleted successfully.")
             del st.session_state["confirm_delete"]
+            st.session_state["active_tab"] = "My"
             st.rerun()
-    with confirm_col2:
+    with col2:
         if st.button("❌ Cancel"):
             del st.session_state["confirm_delete"]
 
 # ------------------------
-# Edit Form
+# Edit Listing Form
 # ------------------------
 if "edit_mode" in st.session_state and st.session_state["edit_mode"]:
-    st.subheader("✏️ Edit Listing")
     listing = st.session_state["edit_mode"]
-
+    st.subheader("✏️ Edit Listing")
     with st.form("edit_listing"):
         new_name = st.text_input("Item", value=listing["item"])
         new_type = st.selectbox("Type", ["Trade", "Sell", "Trade or Sell"], index=["Trade", "Sell", "Trade or Sell"].index(listing["type"]))
@@ -272,7 +280,9 @@ if "edit_mode" in st.session_state and st.session_state["edit_mode"]:
             if r[0] == listing["id"]:
                 sheet.delete_rows(i + 1)
                 break
+
         sheet.append_row(updated_row)
         st.session_state["edit_mode"] = None
         st.session_state["update_success"] = True
+        st.session_state["active_tab"] = "My"
         st.rerun()
