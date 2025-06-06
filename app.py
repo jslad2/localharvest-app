@@ -65,6 +65,22 @@ client = gspread.authorize(creds)
 sheet = client.open("LocalHarvest Listings").sheet1
 
 # ------------------------
+# User Session / Login
+# ------------------------
+if "user_email" not in st.session_state:
+    st.session_state["user_email"] = ""
+
+st.sidebar.header("🔐 Login")
+email_input = st.sidebar.text_input("Your Email", placeholder="you@email.com")
+
+if st.sidebar.button("Log In"):
+    if "@" in email_input and "." in email_input:
+        st.session_state["user_email"] = email_input
+        st.sidebar.success(f"Logged in as {email_input}")
+    else:
+        st.sidebar.error("Please enter a valid email.")
+
+# ------------------------
 # Header
 # ------------------------
 st.markdown("<div class='main-title'>🌽 LocalHarvest</div>", unsafe_allow_html=True)
@@ -73,7 +89,7 @@ st.markdown("<div class='tagline'>Trade or sell homegrown produce in your neighb
 # ------------------------
 # Tabs
 # ------------------------
-tab1, tab2 = st.tabs(["📬 Post Produce", "🍏 Browse Listings"])
+tab1, tab2, tab3 = st.tabs(["📬 Post Produce", "🍏 Browse Listings", "📂 My Listings"])
 
 # ------------------------
 # POST Produce
@@ -81,38 +97,41 @@ tab1, tab2 = st.tabs(["📬 Post Produce", "🍏 Browse Listings"])
 with tab1:
     st.subheader("📤 Post Your Produce")
 
-    name = st.text_input("Item", placeholder="e.g., Tomatoes, Basil")
-    type = st.selectbox("Type", ["", "Trade", "Sell", "Trade or Sell"])
+    if not st.session_state["user_email"]:
+        st.warning("Please log in using the sidebar to post produce.")
+    else:
+        name = st.text_input("Item", placeholder="e.g., Tomatoes, Basil")
+        type = st.selectbox("Type", ["", "Trade", "Sell", "Trade or Sell"])
 
-    if type:
-        with st.form("add_listing", clear_on_submit=True):
-            description = st.text_area("Description")
-            location = st.text_input("ZIP Code", placeholder="e.g., 90210", help="Your 5-digit postal code")
-            contact_method = st.selectbox("Preferred Contact Method", ["Email", "Phone", "Both"])
-            contact = st.text_input("Enter contact detail", placeholder="email@example.com")
-            price = st.text_input("Price", placeholder="$5 per bunch") if type in ["Sell", "Trade or Sell"] else ""
-            image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
-            submit = st.form_submit_button("Post Listing")
+        if type:
+            with st.form("add_listing", clear_on_submit=True):
+                description = st.text_area("Description")
+                location = st.text_input("ZIP Code", placeholder="e.g., 90210", help="Your 5-digit postal code")
+                contact_method = st.selectbox("Preferred Contact Method", ["Email", "Phone", "Both"])
+                contact = st.text_input("Enter contact detail", value=st.session_state["user_email"])
+                price = st.text_input("Price", placeholder="$5 per bunch") if type in ["Sell", "Trade or Sell"] else ""
+                image = st.file_uploader("Upload an image (optional)", type=["jpg", "jpeg", "png"])
+                submit = st.form_submit_button("Post Listing")
 
-        if submit:
-            if not (name and location and contact):
-                st.warning("❗ Please fill out all required fields (Item, ZIP Code, Contact).")
-            else:
-                image_url = ""
-                if image:
-                    image_bytes = image.read()
-                    image_url = f"data:image/jpeg;base64,{base64.b64encode(image_bytes).decode()}"
+            if submit:
+                if not (name and location and contact):
+                    st.warning("❗ Please fill out all required fields (Item, ZIP Code, Contact).")
+                else:
+                    image_url = ""
+                    if image:
+                        image_bytes = image.read()
+                        image_url = f"data:image/jpeg;base64,{base64.b64encode(image_bytes).decode()}"
 
-                listing = [
-                    str(uuid.uuid4()), name, type, description, location,
-                    f"{contact_method}: {contact}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), image_url, price
-                ]
+                    listing = [
+                        str(uuid.uuid4()), name, type, description, location,
+                        f"{contact_method}: {contact}", datetime.now().strftime("%Y-%m-%d %H:%M:%S"), image_url, price
+                    ]
 
-                try:
-                    sheet.append_row(listing)
-                    st.success(f"✅ {name} listed successfully on {listing[6]}!")
-                except Exception as e:
-                    st.error(f"❌ Failed to add listing: {e}")
+                    try:
+                        sheet.append_row(listing)
+                        st.success(f"✅ {name} listed successfully on {listing[6]}!")
+                    except Exception as e:
+                        st.error(f"❌ Failed to add listing: {e}")
 
 # ------------------------
 # Browse Listings
@@ -122,6 +141,12 @@ with tab2:
 
     try:
         data = sheet.get_all_values()
+
+        # pad short rows with empty columns if needed
+        for i, row in enumerate(data[1:]):
+            while len(row) < 9:
+                row.append("")
+
         df = pd.DataFrame(data[1:], columns=[
             "id", "item", "type", "desc", "zip", "contact", "timestamp", "image", "price"
         ])
@@ -133,10 +158,7 @@ with tab2:
     all_zips = sorted(df["zip"].unique())
     zip_filter = st.selectbox("Filter by ZIP Code", options=["All"] + all_zips)
 
-    if zip_filter == "All":
-        matches = df
-    else:
-        matches = df[df["zip"].str.startswith(zip_filter)]
+    matches = df if zip_filter == "All" else df[df["zip"].str.startswith(zip_filter)]
 
     if matches.empty:
         st.warning("⚠ No listings found.")
@@ -154,3 +176,32 @@ with tab2:
             {image_html}
             </div>
             """, unsafe_allow_html=True)
+
+# ------------------------
+# My Listings
+# ------------------------
+with tab3:
+    st.subheader("📂 My Listings")
+
+    user = st.session_state.get("user_email", "")
+    if not user:
+        st.warning("Please log in using the sidebar to view your listings.")
+    else:
+        my_listings = df[df["contact"].str.contains(user, case=False, na=False)]
+
+        if my_listings.empty:
+            st.info("You haven’t posted anything yet.")
+        else:
+            for _, l in my_listings.iterrows():
+                image_html = f"<img class='listing-thumb' src='{l['image']}'/>" if l['image'] else ""
+                price_line = f"💲 <strong>Price:</strong> {l['price']}<br>" if l['price'] else ""
+                st.markdown(f"""
+                <div class='listing-card'>
+                <strong>{l['item']}</strong> ({l['type']})<br>
+                <span style='color:#555;'>{l['desc']}</span><br>
+                📍 <strong>ZIP:</strong> {l['zip']}<br>
+                📞 <strong>Contact:</strong> {l['contact']}<br>
+                {price_line}
+                {image_html}
+                </div>
+                """, unsafe_allow_html=True)
